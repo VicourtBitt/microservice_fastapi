@@ -1,20 +1,23 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from .services.client.routes import router as client
-from .services.employee.routes import router as employee
+from app.core.middleware.EncodeMiddleware import Base64Middleware
+from app.router.gateway import router as api_router
 
-# Initialize FastAPI app
 app = FastAPI()
+app.include_router(api_router)
+app.add_middleware(Base64Middleware)
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.on_event("startup")
+async def startup():
+    from app.core.database import init_db
+    await init_db()
 
-# Include/Import routes
-app.include_router(client, prefix="/client", tags=["client"])
-app.include_router(employee, prefix="/employee", tags=["employee"])
+
+@app.on_event("shutdown")
+async def shutdown():
+    from app.core.database import close_db
+    await close_db()
+
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the FastAPI application!"}

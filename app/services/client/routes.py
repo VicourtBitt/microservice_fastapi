@@ -1,51 +1,26 @@
 from fastapi import APIRouter, Depends
-from sqlmodel import Session, select
-from typing import List
-from ...core.database import get_db
-from .models import StgClient
-from .schema import ClientBase
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.utils.models import StgClient
+from app.core.utils.schemas import ClientBase
+from app.core.database import get_db
+from app.services.client.services import ClientService
 
-## Initialize router for each client route
-router = APIRouter()
-
-
-## Get all clients
-@router.get("/all", response_model=List[StgClient])
-def get_all_clients(db: Session = Depends(get_db)):
-    statement = select(
-        StgClient
-    )
-
-    clients = db.exec(statement)
-    return clients
+router = APIRouter(prefix="/client", tags=["client"])
 
 
-## Get client by ID
-@router.get("/{client_id}", response_model=StgClient)
-def get_client_by_id(client_id: int, db: Session = Depends(get_db)):
-    statement = select(
-        StgClient
-    ).where(
-        StgClient.client_id == client_id
-    )
-
-    client = db.exec(statement).first()
-    return client
+@router.get("/users")
+async def get_users(session: AsyncSession = Depends(get_db)):
+    """Get all users"""
+    return await ClientService.get_users(session)
 
 
-## Post client
+@router.get("/users/{user_id}")
+async def get_user_by_id(user_id: int, session: AsyncSession = Depends(get_db)):
+    """Get user by id"""
+    return await ClientService.get_user_by_id(session, user_id)
+
+
 @router.post("/register", response_model=StgClient)
-def post_client(client: ClientBase, db: Session = Depends(get_db)):
-    new_client = StgClient(
-        client_id=client.client_id,
-        client_attendant_id=client.client_attendant_id,
-        client_name=client.client_name,
-        client_email=client.client_email,
-        client_phone=client.client_phone,
-        last_updated=client.last_updated
-    )
-
-    db.add(new_client)
-    db.commit()
-    db.refresh(new_client)
-    return new_client
+async def post_client(client: ClientBase, session: AsyncSession = Depends(get_db)):
+    """Register a new client"""
+    return await ClientService.post_client(session, client)
